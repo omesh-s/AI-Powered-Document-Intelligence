@@ -81,6 +81,7 @@ class QueryMessage(Base):
         nullable=False,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    answerability: Mapped[str | None] = mapped_column(String(32), nullable=True)
     debug_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

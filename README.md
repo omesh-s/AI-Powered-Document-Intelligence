@@ -52,7 +52,7 @@ Production-oriented monorepo for document ingestion, semantic indexing, and cita
 
 ### Data flow (query)
 
-1. Embed query → hybrid retrieval (semantic + keyword placeholder) → optional rerank → grounded LLM prompt → `QueryMessage` + `Citation` rows.
+1. Embed query → **pgvector** similarity search over `chunks.embedding` (scoped by workspace / document / version) → optional rerank → grounded LLM prompt → persisted `QuerySession`, `QueryMessage`, and `Citation` rows.
 
 ### Non-functional defaults
 
@@ -116,15 +116,104 @@ cd apps/api && uv sync && uv run alembic upgrade head
 | GET | `/api/documents/{id}` | |
 | DELETE | `/api/documents/{id}` | soft delete (`deleted_at`) |
 
+## Phase 4 — Ingestion foundation (implemented)
+
+Phase 4 adds a working ingestion pipeline foundation that moves documents from `queued` to `indexed` by parsing source content and persisting `pages`, `structured_blocks`, and `chunks`. It also implements ingestion job orchestration contracts (job lifecycle, reprocess, and status progression) and read-only job visibility endpoints.
+
+### Ingestion endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/ingestion/jobs` | member-only; supports `workspace_id`, `document_id`, `status`, plus pagination (`page`, `size`) |
+| GET | `/api/ingestion/jobs/{id}` | member-only; includes job + document summary + metrics/errors |
+| POST | `/api/documents/{document_id}/reprocess` | member-only; enqueues a new ingestion job for `latest_version_id` and clears pages/blocks/chunks for that version |
+
+### Worker / manual job runner
+
+Queued jobs can be processed outside request handlers using:
+
+```bash
+cd apps/api
+python -m app.workers.ingestion_runner <ingestion_job_id>
+```
+
+### Supported ingestion formats in this phase
+- **TXT** (`text/plain`): fully implemented end-to-end
+- **DOCX** (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`): implemented using `python-docx`
+- **PDF** (`application/pdf`): implemented using PyMuPDF native text extraction (page-level), with OCR fallback for empty pages (stubbed OCR provider)
+- **OCR fallback**: implemented as an abstraction with a deterministic local stub. OCR is invoked when the extracted page text is empty.
+- **Embeddings / vector writes**: real `pgvector` embeddings on `chunks.embedding` (Phase 5). Ingestion calls the embedding service after chunking; reprocess recomputes embeddings for the current version’s chunks.
+
+### Readiness behavior
+
+- `/health` stays lightweight.
+- `/ready` checks database connectivity and Redis connectivity when Redis broker/backend are configured via `redis://...`. It returns `503` with `status=not_ready` when critical dependencies are unavailable.
+
+## Phase 5 — Retrieval & citation-grounded QA (implemented)
+
+Phase 5 adds end-to-end **semantic retrieval** over chunk embeddings stored in Postgres (`pgvector`), **grounded answer generation** with **citations**, **query session/message persistence**, and an explicit **insufficient evidence** pathway when retrieval scores are weak or empty.
+
+### Query endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/query/ask` | Member-only; embeds question, retrieves top‑k chunks (scoped to workspace or one `document_id`), optional rerank (noop by default), generates answer, persists session/messages/citations |
+| GET | `/api/query/sessions` | Lists the caller’s sessions; requires `workspace_id`; optional `document_id`, `page`, `size` |
+| GET | `/api/query/sessions/{session_id}` | Session detail with ordered messages; assistant rows include `citations` and `debug_json` when stored |
+
+### Request / response (ask)
+
+- **Request** (JSON): `workspace_id`, optional `document_id`, optional `session_id` (continue thread), `question`, optional `debug` (includes retrieval diagnostics, no raw prompts).
+- **Response**: `session` (id, workspace_id, nullable `document_id`), `message` (assistant turn with `answerability`: `grounded` \| `insufficient_evidence`), `citations[]` (`document_id`, `document_name`, `document_version_id`, `page_number`, `chunk_id`, `excerpt`, `score`), optional `debug`.
+
+### How embeddings & retrieval work
+
+- **Embeddings**: `EmbeddingProvider` (`fake` default for dev/tests; `openai` when `EMBEDDING_PROVIDER=openai` and `OPENAI_API_KEY` is set). Batch embedding runs after ingestion chunking and writes vectors on `Chunk.embedding` plus vector-store upserts (pgvector uses the same column).
+- **Retrieval**: query embedding → `PgVectorVectorStore.query_similar` (cosine distance `<=>`, score `1 - distance` clamped to `[0,1]`). SQL joins `chunks` → `document_versions` → `documents`, filters `workspace_id`, optional `document_id`, optional `document_version_id`, and **only the document’s `latest_version_id`** when no explicit version filter is passed (avoids stale versions).
+- **Reranking**: `Reranker` abstraction; default `NoopReranker`. `PLACEHOLDER` reranker is a no-op reserved for a future cross-encoder.
+
+### Configuration (environment)
+
+| Variable | Purpose |
+| --- | --- |
+| `EMBEDDING_PROVIDER` | `fake` (default, deterministic vectors) or `openai` |
+| `LLM_PROVIDER` | `fake` (default, deterministic answers for tests) or `openai` |
+| `OPENAI_API_KEY` | Required when using OpenAI-backed providers |
+| `OPENAI_EMBEDDING_MODEL` / `OPENAI_CHAT_MODEL` | Model names for OpenAI adapters |
+| `EMBEDDING_DIMENSION` | Must match the embedding column width (default `1536`) |
+| `QUERY_TOP_K_RETRIEVAL` | Vector candidates (default `20`) |
+| `QUERY_TOP_K_FINAL_CONTEXT` | Chunks passed to the LLM after rerank/trim (default `5`) |
+| `QUERY_MIN_SIMILARITY_SCORE` | Drop hits below this score (default `0.0`) |
+| `QUERY_MAX_CONTEXT_CHARS` | Soft cap on combined chunk text (default `12000`) |
+| `QUERY_ANSWERABILITY_THRESHOLD` | If `> 0`, max retrieved score below this marks `insufficient_evidence` (default `0.0` = off) |
+| `QUERY_RERANKING_ENABLED` / `RERANKER_PROVIDER` | Feature flag + `noop` / `placeholder` |
+
+### pgvector index expectations
+
+For small dev datasets the planner can **sequentially scan** `chunks.embedding`. For production-scale similarity search, create an approximate index after you have representative data volume, for example:
+
+```sql
+CREATE INDEX IF NOT EXISTS ix_chunks_embedding_hnsw
+ON chunks USING hnsw (embedding vector_cosine_ops);
+```
+
+Tune `m` / `ef_construction` per pgvector docs and your latency/recall targets.
+
 ### Migrations
 
-Run after pulling Phase 3:
+Run after pulling Phase 5:
 
 ```bash
 cd apps/api && python -m alembic upgrade head
 ```
 
-Adds `users.full_name` (`20260514100000_add_user_full_name.py`).
+Adds `query_messages.answerability` (`20260515120000_query_message_answerability.py`).
+
+### Deferred to Phase 6
+
+- Rich hybrid retrieval (BM25 / keyword fusion) and eval harnesses.
+- Hosted rerankers and multi-modal answers.
+- Frontend chat UX and streaming responses.
 
 ### Tests
 

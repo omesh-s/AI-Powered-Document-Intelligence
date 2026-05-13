@@ -43,6 +43,19 @@ class Settings(BaseSettings):
 
     vector_backend: Literal["pgvector", "qdrant"] = "pgvector"
     embedding_dimension: int = 1536
+    embedding_provider: Literal["fake", "openai"] = "fake"
+    embedding_batch_size: int = 32
+
+    llm_provider: Literal["fake", "openai"] = "fake"
+
+    # Phase 5 — retrieval & QA
+    query_top_k_retrieval: int = 20
+    query_top_k_final_context: int = 5
+    query_min_similarity_score: float = 0.0
+    query_max_context_chars: int = 12000
+    query_reranking_enabled: bool = False
+    query_answerability_threshold: float = 0.0
+    reranker_provider: Literal["noop", "placeholder"] = "noop"
 
     openai_api_key: str | None = None
     openai_embedding_model: str = "text-embedding-3-small"

@@ -29,7 +29,8 @@ os.environ.setdefault("RATE_LIMIT_REGISTER_PER_MINUTE", "200")
 os.environ.setdefault("RATE_LIMIT_LOGIN_PER_MINUTE", "200")
 os.environ.setdefault("RATE_LIMIT_REFRESH_PER_MINUTE", "200")
 os.environ.setdefault("RATE_LIMIT_UPLOAD_URL_PER_MINUTE", "200")
-os.environ.setdefault("RATE_LIMIT_DOCUMENT_CREATE_PER_MINUTE", "200")
+os.environ.setdefault("EMBEDDING_PROVIDER", "fake")
+os.environ.setdefault("LLM_PROVIDER", "fake")
 
 
 @pytest.fixture(scope="session")

@@ -25,6 +25,7 @@ from app.models.ingestion import IngestionJob
 from app.models.workspace import WorkspaceMember
 from app.schemas.ingestion import DocumentIngestionSummary, IngestionJobSummary
 from app.services import audit_service
+from app.services.embedding_service import embed_and_store_chunks
 from app.services.workspace_service import require_workspace_member
 
 logger = get_logger(__name__)
@@ -59,14 +60,6 @@ class StubOCRProvider(OCRProvider):
     async def ocr_empty_page(self) -> tuple[str, float | None]:
         # Deterministic local stub; replace with a real provider in Phase 5.
         return "OCR_TEXT_STUB", 0.0
-
-
-class NoopVectorIndexWriter:
-    async def index_chunks(self, *, chunks: list[Chunk]) -> None:
-        # In Phase 4 we keep embeddings/vector writes as a contract stub.
-        # Retrieval indexing becomes fully real in Phase 5.
-        _ = chunks
-        return
 
 
 def _now_utc() -> datetime:
@@ -232,14 +225,12 @@ async def process_ingestion_job(
     job_id: UUID,
     storage_client: ObjectStorageClient,
     ocr_provider: OCRProvider | None = None,
-    vector_writer: NoopVectorIndexWriter | None = None,
 ) -> None:
     """
     Core ingestion orchestration. Worker entrypoints and API reprocess share this logic.
     """
     settings = get_settings()
     ocr_provider = ocr_provider or StubOCRProvider()
-    vector_writer = vector_writer or NoopVectorIndexWriter()
 
     job = await session.get(IngestionJob, job_id)
     if job is None:
@@ -589,7 +580,7 @@ async def process_ingestion_job(
                             chunk_index=chunk_index,
                             text=chunk_text,
                             token_count=_estimate_token_count(chunk_text),
-                            embedding_model=settings.openai_embedding_model,
+                            embedding_model=None,
                             metadata_json=meta,
                             vector_id=None,
                         )
@@ -624,7 +615,7 @@ async def process_ingestion_job(
             chunks = (
                 await session.execute(select(Chunk).where(Chunk.document_version_id == version.id))
             ).scalars().all()
-            await vector_writer.index_chunks(chunks=chunks)
+            await embed_and_store_chunks(session, list(chunks))
 
             logger.info(
                 "ingestion.job.embedding_ready",
