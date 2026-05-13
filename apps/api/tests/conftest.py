@@ -6,6 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+# Shared in-memory object store for tests.
+# Keyed by S3 object key (the `storage_key` stored in DocumentVersion).
+FAKE_OBJECT_BYTES: dict[str, bytes] = {}
+FAKE_OBJECT_RAISE_ON: set[str] = set()
+
 # Settings load at import time for several modules — provide safe defaults for tests.
 os.environ.setdefault("API_SECRET_KEY", "abcdefghijklmnopqrstuvwxyz0123456789abcd")
 os.environ.setdefault(
@@ -69,8 +74,10 @@ def api_client() -> TestClient:
             )
 
         def get_object_bytes(self, *, bucket: str, key: str) -> bytes:
-            _ = (bucket, key)
-            return b""
+            _ = bucket
+            if key in FAKE_OBJECT_RAISE_ON:
+                raise RuntimeError("FakeObjectStorage: forced failure for key")
+            return FAKE_OBJECT_BYTES.get(key, b"")
 
         def delete_object(self, *, bucket: str, key: str) -> None:
             _ = (bucket, key)
@@ -109,8 +116,10 @@ def client(database_live: bool) -> TestClient:
             )
 
         def get_object_bytes(self, *, bucket: str, key: str) -> bytes:
-            _ = (bucket, key)
-            return b""
+            _ = bucket
+            if key in FAKE_OBJECT_RAISE_ON:
+                raise RuntimeError("FakeObjectStorage: forced failure for key")
+            return FAKE_OBJECT_BYTES.get(key, b"")
 
         def delete_object(self, *, bucket: str, key: str) -> None:
             _ = (bucket, key)
@@ -130,3 +139,9 @@ def unique_email() -> str:
 
 def auth_headers(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+def fake_object_store() -> tuple[dict[str, bytes], set[str]]:
+    """Expose fake object bytes and failure keys to tests."""
+    return FAKE_OBJECT_BYTES, FAKE_OBJECT_RAISE_ON

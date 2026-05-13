@@ -65,6 +65,11 @@ class Settings(BaseSettings):
         "text/plain"
     )
 
+    # Ingestion chunking (Phase 4)
+    chunk_max_chars: int = 2000
+    chunk_min_chars: int = 200
+    chunk_overlap_chars: int = 200
+
     log_level: str = "INFO"
     log_json: bool = True
 

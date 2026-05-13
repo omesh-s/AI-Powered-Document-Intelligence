@@ -12,7 +12,9 @@ from app.schemas.document import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from app.schemas.ingestion import IngestionReprocessResponse
 from app.services import document_service
+from app.services import ingestion_service
 
 router = APIRouter()
 
@@ -104,4 +106,24 @@ async def delete_document(
         db,
         actor=current_user,
         document_id=document_id,
+    )
+
+
+@router.post("/{document_id}/reprocess", response_model=IngestionReprocessResponse)
+async def reprocess_document(
+    request: Request,
+    document_id: UUID,
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> IngestionReprocessResponse:
+    request_id = getattr(request.state, "request_id", "")
+    job, doc = await ingestion_service.create_reprocess_job(
+        db,
+        actor=current_user,
+        document_id=document_id,
+    )
+    return IngestionReprocessResponse(
+        job=job,
+        document=doc,
+        request_id=request_id,
     )
