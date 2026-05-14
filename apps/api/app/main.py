@@ -14,6 +14,7 @@ from app.api.router import api_router
 from app.api.routes import health as health_routes
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorBody, ErrorResponse
+from app.core.startup_validation import validate_settings_at_startup
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import limiter
 
@@ -49,6 +50,8 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    validate_settings_at_startup(settings)
+
     app = FastAPI(
         title="Document Intelligence API",
         version="0.1.0",

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "description": "Replace workspace_id / document_id with real UUIDs from your environment after ingestion.",
+  "cases": [
+    {
+      "id": "example_grounded",
+      "workspace_id": "00000000-0000-0000-0000-000000000001",
+      "document_id": "00000000-0000-0000-0000-000000000002",
+      "question": "What are the main topics in this document?",
+      "expect_answerability": "grounded",
+      "expect_citation_count_min": 1,
+      "expected_chunk_ids": [],
+      "expected_pages": [],
+      "expected_answer_phrases": []
+    },
+    {
+      "id": "example_insufficient",
+      "workspace_id": "00000000-0000-0000-0000-000000000001",
+      "document_id": null,
+      "question": "asdfghjkl nonsense query unlikely to match",
+      "expect_answerability": "insufficient_evidence",
+      "expect_citation_count_min": 0,
+      "expected_chunk_ids": [],
+      "expected_pages": [],
+      "expected_answer_phrases": []
+    }
+  ]
+}

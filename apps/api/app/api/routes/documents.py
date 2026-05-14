@@ -5,9 +5,12 @@ from fastapi import APIRouter, Query, Request
 from app.api.deps import CurrentUserDep, DbSessionDep, StorageDep
 from app.core.config import get_settings
 from app.core.rate_limit import limiter
+from app.models.enums import DocumentLifecycleStatus
 from app.schemas.document import (
+    DocumentChunksResponse,
     DocumentCreateRequest,
     DocumentListResponse,
+    DocumentPagesResponse,
     DocumentResponse,
     UploadUrlRequest,
     UploadUrlResponse,
@@ -71,6 +74,7 @@ async def list_documents(
     db: DbSessionDep,
     current_user: CurrentUserDep,
     workspace_id: UUID = Query(..., description="Workspace to list documents for"),
+    status: DocumentLifecycleStatus | None = Query(None, description="Filter by document lifecycle status"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
 ) -> DocumentListResponse:
@@ -80,6 +84,33 @@ async def list_documents(
         workspace_id=workspace_id,
         page=page,
         size=size,
+        status=status,
+    )
+
+
+@router.get("/{document_id}/pages", response_model=DocumentPagesResponse)
+async def list_document_pages(
+    document_id: UUID,
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> DocumentPagesResponse:
+    return await document_service.list_document_pages(
+        db,
+        actor=current_user,
+        document_id=document_id,
+    )
+
+
+@router.get("/{document_id}/chunks", response_model=DocumentChunksResponse)
+async def list_document_chunks(
+    document_id: UUID,
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> DocumentChunksResponse:
+    return await document_service.list_document_chunks(
+        db,
+        actor=current_user,
+        document_id=document_id,
     )
 
 

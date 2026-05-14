@@ -55,3 +55,33 @@ class DocumentResponse(BaseModel):
 class DocumentListResponse(BaseModel):
     items: list[DocumentResponse]
     pagination: PaginatedMeta
+
+
+class DocumentPageResponse(BaseModel):
+    id: UUID
+    page_number: int
+    extraction_method: str
+    markdown_text: str | None = None
+    raw_text: str | None = None
+
+
+class DocumentPagesResponse(BaseModel):
+    document_id: UUID
+    document_version_id: UUID
+    pages: list[DocumentPageResponse]
+
+
+class DocumentChunkResponse(BaseModel):
+    id: UUID
+    chunk_index: int
+    page_id: UUID | None = None
+    page_number: int | None = None
+    text: str
+    metadata_json: dict[str, Any] | None = None
+    embedding_model: str | None = None
+
+
+class DocumentChunksResponse(BaseModel):
+    document_id: UUID
+    document_version_id: UUID
+    chunks: list[DocumentChunkResponse]

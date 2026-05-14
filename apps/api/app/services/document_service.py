@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
 from app.core.errors import AppError
@@ -14,12 +15,16 @@ from app.core.storage import (
     build_presigned_upload_object_key,
     storage_key_is_within_workspace_scope,
 )
-from app.models.document import Document, DocumentVersion
+from app.models.document import Chunk, Document, DocumentVersion, Page
 from app.models.enums import DocumentLifecycleStatus
 from app.models.ingestion import IngestionJob
 from app.models.user import User
 from app.schemas.document import (
+    DocumentChunkResponse,
+    DocumentChunksResponse,
     DocumentListResponse,
+    DocumentPageResponse,
+    DocumentPagesResponse,
     DocumentResponse,
     IngestionJobSummary,
     UploadUrlResponse,
@@ -209,12 +214,15 @@ async def list_documents(
     workspace_id: UUID,
     page: int,
     size: int,
+    status: DocumentLifecycleStatus | None = None,
 ) -> DocumentListResponse:
     await require_workspace_member(session, workspace_id=workspace_id, user_id=actor.id)
-    base_filter = (
+    base_filter = [
         Document.workspace_id == workspace_id,
         Document.deleted_at.is_(None),
-    )
+    ]
+    if status is not None:
+        base_filter.append(Document.status == status)
     count_stmt = select(func.count()).select_from(Document).where(*base_filter)
     total = int((await session.execute(count_stmt)).scalar_one())
     stmt = (
@@ -232,6 +240,92 @@ async def list_documents(
     return DocumentListResponse(
         items=items,
         pagination=PaginatedMeta(page=page, size=size, total=total),
+    )
+
+
+async def list_document_pages(
+    session: AsyncSession,
+    *,
+    actor: User,
+    document_id: UUID,
+) -> DocumentPagesResponse:
+    doc = await session.get(Document, document_id)
+    if doc is None or doc.deleted_at is not None:
+        raise AppError("DOCUMENT_NOT_FOUND", "Document not found", status_code=404)
+    await require_workspace_member(session, workspace_id=doc.workspace_id, user_id=actor.id)
+    if doc.latest_version_id is None:
+        raise AppError(
+            "DOCUMENT_HAS_NO_VERSION",
+            "Document has no version yet",
+            status_code=400,
+        )
+    stmt = (
+        select(Page)
+        .where(Page.document_version_id == doc.latest_version_id)
+        .order_by(Page.page_number)
+    )
+    pages = (await session.execute(stmt)).scalars().all()
+    return DocumentPagesResponse(
+        document_id=doc.id,
+        document_version_id=doc.latest_version_id,
+        pages=[
+            DocumentPageResponse(
+                id=p.id,
+                page_number=p.page_number,
+                extraction_method=p.extraction_method.value,
+                markdown_text=p.markdown_text,
+                raw_text=p.raw_text,
+            )
+            for p in pages
+        ],
+    )
+
+
+async def list_document_chunks(
+    session: AsyncSession,
+    *,
+    actor: User,
+    document_id: UUID,
+) -> DocumentChunksResponse:
+    doc = await session.get(Document, document_id)
+    if doc is None or doc.deleted_at is not None:
+        raise AppError("DOCUMENT_NOT_FOUND", "Document not found", status_code=404)
+    await require_workspace_member(session, workspace_id=doc.workspace_id, user_id=actor.id)
+    if doc.latest_version_id is None:
+        raise AppError(
+            "DOCUMENT_HAS_NO_VERSION",
+            "Document has no version yet",
+            status_code=400,
+        )
+    stmt = (
+        select(Chunk)
+        .where(Chunk.document_version_id == doc.latest_version_id)
+        .options(selectinload(Chunk.page))
+        .order_by(Chunk.chunk_index)
+    )
+    chunks = (await session.execute(stmt)).scalars().all()
+    out: list[DocumentChunkResponse] = []
+    for c in chunks:
+        pn = c.page.page_number if c.page is not None else None
+        if pn is None and c.metadata_json:
+            raw_pn = c.metadata_json.get("page_number")
+            if isinstance(raw_pn, int):
+                pn = raw_pn
+        out.append(
+            DocumentChunkResponse(
+                id=c.id,
+                chunk_index=c.chunk_index,
+                page_id=c.page_id,
+                page_number=pn,
+                text=c.text,
+                metadata_json=c.metadata_json,
+                embedding_model=c.embedding_model,
+            )
+        )
+    return DocumentChunksResponse(
+        document_id=doc.id,
+        document_version_id=doc.latest_version_id,
+        chunks=out,
     )
 
 

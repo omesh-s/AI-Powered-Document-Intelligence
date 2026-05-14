@@ -1,4 +1,4 @@
-.PHONY: dev api web test lint format migrate docker-up docker-down
+.PHONY: dev api web test lint format migrate docker-up docker-down smoke demo-setup build-web verify
 
 dev:
 	@echo "Run API and Web in separate terminals: make api && make web"
@@ -29,3 +29,14 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+demo-setup:
+	python scripts/demo_setup.py
+
+smoke:
+	cd apps/api && python scripts/smoke_test.py
+
+build-web:
+	cd apps/web && npm run build
+
+verify: test lint build-web

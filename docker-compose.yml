@@ -1,3 +1,6 @@
+# Local dependencies for Document Intelligence (Postgres+pgvector, Redis, MinIO).
+# Start API/Web from the host: see Makefile (make api / make web).
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -36,8 +39,8 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
-
-  # API and Web are started via Makefile locally; add services here when Dockerizing apps.
+    # MinIO images are minimal (no curl). Typical stack order: postgres + redis + minio
+    # (wait for 9000 from host) → migrations → API → ingestion worker → web dev server.
 
 volumes:
   postgres_data:

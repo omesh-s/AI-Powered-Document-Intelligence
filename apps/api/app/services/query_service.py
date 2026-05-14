@@ -38,16 +38,19 @@ def _merge_debug(
 ) -> QueryDebugPayload | None:
     if not debug:
         return None
-    safe_retrieval = {
-        "retrieved_chunk_ids": retrieval.get("retrieved_chunk_ids", []),
-        "raw_scores": retrieval.get("raw_scores", []),
-        "selected_chunk_ids": retrieval.get("selected_chunk_ids", []),
-        "embedding_model": retrieval.get("embedding_model"),
-        "reranker": retrieval.get("reranker"),
-        "timings_ms": retrieval.get("timings_ms", {}),
-    }
+    raw_chunk_ids = retrieval.get("retrieved_chunk_ids", []) or []
+    rid = [str(x) for x in list(raw_chunk_ids)[:48]]
+    raw_scores = retrieval.get("raw_scores", []) or []
+    rsc = [float(x) for x in list(raw_scores)[:48]]
+    raw_selected = retrieval.get("selected_chunk_ids", []) or []
+    sid = [str(x) for x in list(raw_selected)[:24]]
     return QueryDebugPayload(
-        **safe_retrieval,
+        retrieved_chunk_ids=rid,
+        raw_scores=rsc,
+        selected_chunk_ids=sid,
+        embedding_model=retrieval.get("embedding_model"),
+        reranker=retrieval.get("reranker"),
+        timings_ms=dict(retrieval.get("timings_ms") or {}),
         llm_path=str(answer_debug.get("path", "")),
     )
 
@@ -156,14 +159,19 @@ async def ask(
         debug_payload = _merge_debug(retrieval=diag, answer_debug=ans.llm_debug, debug=body.debug)
         assistant_debug: dict[str, Any] | None = None
         if body.debug:
+            full_ids = diag.get("retrieved_chunk_ids", []) or []
+            raw_ids = [str(x) for x in list(full_ids)[:48]]
+            raw_sc = [float(x) for x in list(diag.get("raw_scores", []) or [])[:48]]
+            raw_sel = diag.get("selected_chunk_ids", []) or []
             assistant_debug = {
                 "retrieval": {
-                    "retrieved_chunk_ids": diag.get("retrieved_chunk_ids", []),
-                    "raw_scores": diag.get("raw_scores", []),
-                    "selected_chunk_ids": diag.get("selected_chunk_ids", []),
+                    "retrieved_chunk_ids": raw_ids,
+                    "raw_scores": raw_sc,
+                    "selected_chunk_ids": [str(x) for x in list(raw_sel)[:24]],
                     "embedding_model": diag.get("embedding_model"),
                     "reranker": diag.get("reranker"),
                     "timings_ms": diag.get("timings_ms", {}),
+                    "truncated_lists": len(raw_ids) < len(full_ids),
                 },
                 "answer": ans.llm_debug,
             }
