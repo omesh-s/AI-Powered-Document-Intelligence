@@ -73,13 +73,13 @@ async def create_document(
 async def list_documents(
     db: DbSessionDep,
     current_user: CurrentUserDep,
-    workspace_id: Annotated[UUID, Query(..., description="Workspace to list documents for")],
+    workspace_id: Annotated[UUID, Query(description="Workspace to list documents for")],
     status: Annotated[
         DocumentLifecycleStatus | None,
-        Query(None, description="Filter by document lifecycle status"),
-    ],
-    page: Annotated[int, Query(1, ge=1)],
-    size: Annotated[int, Query(20, ge=1, le=100)],
+        Query(description="Filter by document lifecycle status"),
+    ] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> DocumentListResponse:
     return await document_service.list_documents(
         db,

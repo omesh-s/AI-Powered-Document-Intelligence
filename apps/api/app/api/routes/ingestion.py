@@ -60,18 +60,18 @@ async def list_jobs(
     current_user: CurrentUserDep,
     workspace_id: Annotated[
         UUID | None,
-        Query(None, description="Filter by workspace id (member visibility enforced)"),
-    ],
+        Query(description="Filter by workspace id (member visibility enforced)"),
+    ] = None,
     document_id: Annotated[
         UUID | None,
-        Query(None, description="Filter by document id (member visibility enforced)"),
-    ],
+        Query(description="Filter by document id (member visibility enforced)"),
+    ] = None,
     status: Annotated[
         IngestionJobStatus | None,
-        Query(None, description="Filter by job status"),
-    ],
-    page: Annotated[int, Query(1, ge=1)],
-    size: Annotated[int, Query(20, ge=1, le=100)],
+        Query(description="Filter by job status"),
+    ] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> IngestionJobListResponse:
     # List with membership enforced by joining through workspace_members.
     base_filters = [

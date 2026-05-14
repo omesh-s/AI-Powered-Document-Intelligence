@@ -37,10 +37,10 @@ async def list_sessions(
     request: Request,
     db: DbSessionDep,
     current_user: CurrentUserDep,
-    workspace_id: Annotated[UUID, Query(..., description="Workspace to list sessions for")],
-    document_id: Annotated[UUID | None, Query(None)],
-    page: Annotated[int, Query(1, ge=1)],
-    size: Annotated[int, Query(20, ge=1, le=100)],
+    workspace_id: Annotated[UUID, Query(description="Workspace to list sessions for")],
+    document_id: Annotated[UUID | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> QuerySessionListResponse:
     _ = request
     return await query_service.list_sessions(
