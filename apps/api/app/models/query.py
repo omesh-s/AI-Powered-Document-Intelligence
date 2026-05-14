@@ -54,10 +54,10 @@ class QuerySession(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    workspace: Mapped["Workspace"] = relationship(back_populates="query_sessions")
-    user: Mapped["User"] = relationship()
-    scope_document: Mapped["Document | None"] = relationship()
-    messages: Mapped[list["QueryMessage"]] = relationship(
+    workspace: Mapped[Workspace] = relationship(back_populates="query_sessions")
+    user: Mapped[User] = relationship()
+    scope_document: Mapped[Document | None] = relationship()
+    messages: Mapped[list[QueryMessage]] = relationship(
         back_populates="session",
         cascade="all, delete-orphan",
         order_by="QueryMessage.created_at",
@@ -87,8 +87,8 @@ class QueryMessage(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    session: Mapped["QuerySession"] = relationship(back_populates="messages")
-    citations: Mapped[list["Citation"]] = relationship(
+    session: Mapped[QuerySession] = relationship(back_populates="messages")
+    citations: Mapped[list[Citation]] = relationship(
         back_populates="query_message",
         cascade="all, delete-orphan",
     )
@@ -124,7 +124,7 @@ class Citation(Base):
     quote_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     score: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
 
-    query_message: Mapped["QueryMessage"] = relationship(back_populates="citations")
-    document: Mapped["Document"] = relationship()
-    document_version: Mapped["DocumentVersion"] = relationship(back_populates="citations")
-    chunk: Mapped["Chunk | None"] = relationship(back_populates="citations")
+    query_message: Mapped[QueryMessage] = relationship(back_populates="citations")
+    document: Mapped[Document] = relationship()
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="citations")
+    chunk: Mapped[Chunk | None] = relationship(back_populates="citations")

@@ -108,7 +108,9 @@ async def ask(
         else:
             loaded = await session.get(QuerySession, body.session_id)
             if loaded is None:
-                raise AppError("QUERY_SESSION_NOT_FOUND", "Query session not found", status_code=404)
+                raise AppError(
+                    "QUERY_SESSION_NOT_FOUND", "Query session not found", status_code=404
+                )
             if loaded.user_id != actor.id:
                 raise AppError(
                     "QUERY_SESSION_FORBIDDEN",
@@ -285,9 +287,9 @@ async def get_session_detail(
         select(QuerySession)
         .where(QuerySession.id == session_id)
         .options(
-            selectinload(QuerySession.messages).selectinload(QueryMessage.citations).selectinload(
-                Citation.document
-            ),
+            selectinload(QuerySession.messages)
+            .selectinload(QueryMessage.citations)
+            .selectinload(Citation.document),
             selectinload(QuerySession.messages)
             .selectinload(QueryMessage.citations)
             .selectinload(Citation.chunk)
@@ -299,7 +301,9 @@ async def get_session_detail(
         raise AppError("QUERY_SESSION_NOT_FOUND", "Query session not found", status_code=404)
     await require_workspace_member(session, workspace_id=qs.workspace_id, user_id=actor.id)
     if qs.user_id != actor.id:
-        raise AppError("QUERY_SESSION_FORBIDDEN", "Not allowed to view this session", status_code=403)
+        raise AppError(
+            "QUERY_SESSION_FORBIDDEN", "Not allowed to view this session", status_code=403
+        )
 
     messages_out: list[QueryMessageResponse] = []
     for m in sorted(qs.messages, key=lambda x: x.created_at):

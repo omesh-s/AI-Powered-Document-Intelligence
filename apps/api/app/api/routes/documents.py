@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
@@ -16,8 +17,7 @@ from app.schemas.document import (
     UploadUrlResponse,
 )
 from app.schemas.ingestion import IngestionReprocessResponse
-from app.services import document_service
-from app.services import ingestion_service
+from app.services import document_service, ingestion_service
 
 router = APIRouter()
 
@@ -73,10 +73,13 @@ async def create_document(
 async def list_documents(
     db: DbSessionDep,
     current_user: CurrentUserDep,
-    workspace_id: UUID = Query(..., description="Workspace to list documents for"),
-    status: DocumentLifecycleStatus | None = Query(None, description="Filter by document lifecycle status"),
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    workspace_id: Annotated[UUID, Query(..., description="Workspace to list documents for")],
+    status: Annotated[
+        DocumentLifecycleStatus | None,
+        Query(None, description="Filter by document lifecycle status"),
+    ],
+    page: Annotated[int, Query(1, ge=1)],
+    size: Annotated[int, Query(20, ge=1, le=100)],
 ) -> DocumentListResponse:
     return await document_service.list_documents(
         db,

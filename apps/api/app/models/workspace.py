@@ -32,13 +32,13 @@ class Workspace(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    members: Mapped[list["WorkspaceMember"]] = relationship(
+    members: Mapped[list[WorkspaceMember]] = relationship(
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
-    documents: Mapped[list["Document"]] = relationship(back_populates="workspace")
-    query_sessions: Mapped[list["QuerySession"]] = relationship(back_populates="workspace")
-    audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="workspace")
+    documents: Mapped[list[Document]] = relationship(back_populates="workspace")
+    query_sessions: Mapped[list[QuerySession]] = relationship(back_populates="workspace")
+    audit_logs: Mapped[list[AuditLog]] = relationship(back_populates="workspace")
 
 
 class WorkspaceMember(Base):
@@ -66,5 +66,5 @@ class WorkspaceMember(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    workspace: Mapped["Workspace"] = relationship(back_populates="members")
-    user: Mapped["User"] = relationship(back_populates="workspace_memberships")
+    workspace: Mapped[Workspace] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(back_populates="workspace_memberships")

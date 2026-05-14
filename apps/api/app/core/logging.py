@@ -16,7 +16,7 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         if hasattr(record, "request_id"):
-            payload["request_id"] = getattr(record, "request_id")
+            payload["request_id"] = record.request_id
         if record.exc_info:
             payload["exc_info"] = self.formatException(record.exc_info)
         return json.dumps(payload, ensure_ascii=False)
@@ -34,6 +34,7 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(settings.log_level.upper())
+
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)

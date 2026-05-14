@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
-
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUserDep, DbSessionDep
 from app.core.errors import AppError
+from app.core.logging import get_logger
 from app.models.document import Document
-from app.models.ingestion import IngestionJob
 from app.models.enums import IngestionJobStatus
+from app.models.ingestion import IngestionJob
 from app.models.workspace import WorkspaceMember
 from app.schemas.ingestion import (
     DocumentIngestionSummary,
@@ -21,7 +21,6 @@ from app.schemas.ingestion import (
 )
 from app.schemas.pagination import PaginatedMeta
 from app.services.workspace_service import require_workspace_member
-from app.core.logging import get_logger
 
 router = APIRouter()
 
@@ -43,6 +42,7 @@ def _job_to_summary(job: IngestionJob) -> IngestionJobSummary:
         error_message=job.error_message,
     )
 
+
 def _doc_to_summary(doc: Document) -> DocumentIngestionSummary:
     return DocumentIngestionSummary(
         id=doc.id,
@@ -58,15 +58,20 @@ def _doc_to_summary(doc: Document) -> DocumentIngestionSummary:
 async def list_jobs(
     db: DbSessionDep,
     current_user: CurrentUserDep,
-    workspace_id: UUID | None = Query(
-        None, description="Filter by workspace id (member visibility enforced)"
-    ),
-    document_id: UUID | None = Query(
-        None, description="Filter by document id (member visibility enforced)"
-    ),
-    status: IngestionJobStatus | None = Query(None, description="Filter by job status"),
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    workspace_id: Annotated[
+        UUID | None,
+        Query(None, description="Filter by workspace id (member visibility enforced)"),
+    ],
+    document_id: Annotated[
+        UUID | None,
+        Query(None, description="Filter by document id (member visibility enforced)"),
+    ],
+    status: Annotated[
+        IngestionJobStatus | None,
+        Query(None, description="Filter by job status"),
+    ],
+    page: Annotated[int, Query(1, ge=1)],
+    size: Annotated[int, Query(20, ge=1, le=100)],
 ) -> IngestionJobListResponse:
     # List with membership enforced by joining through workspace_members.
     base_filters = [
@@ -103,11 +108,7 @@ async def list_jobs(
 
     total = int((await db.execute(count_stmt)).scalar_one())
 
-    stmt = (
-        join_stmt.order_by(IngestionJob.created_at.desc())
-        .offset((page - 1) * size)
-        .limit(size)
-    )
+    stmt = join_stmt.order_by(IngestionJob.created_at.desc()).offset((page - 1) * size).limit(size)
     rows = (await db.execute(stmt)).all()
 
     items: list[IngestionJobSummary] = []
@@ -118,6 +119,7 @@ async def list_jobs(
         items=items,
         pagination=PaginatedMeta(page=page, size=size, total=total),
     )
+
 
 @router.get("/jobs/{job_id}", response_model=IngestionJobDetailResponse)
 async def get_job(

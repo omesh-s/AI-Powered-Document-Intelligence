@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 import uuid
-from pathlib import PurePath
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import PurePath
 from uuid import UUID
 
 import boto3
@@ -153,9 +153,7 @@ def storage_key_is_within_workspace_scope(
         return False
     if not filename_part or "/" in filename_part or filename_part in (".", ".."):
         return False
-    if ".." in storage_key:
-        return False
-    return True
+    return ".." not in storage_key
 
 
 class MalwareScanProvider(ABC):

@@ -4,14 +4,12 @@ import asyncio
 import sys
 from uuid import UUID
 
-from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.core.storage import S3ObjectStorage
 from app.services.ingestion_service import process_ingestion_job
 
 
 async def run_job(job_id: UUID) -> None:
-    settings = get_settings()
     storage = S3ObjectStorage.from_settings()
     async with AsyncSessionLocal() as session:
         await process_ingestion_job(session, job_id=job_id, storage_client=storage)
@@ -31,4 +29,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

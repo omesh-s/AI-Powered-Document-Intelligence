@@ -9,10 +9,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_ROOT = Path(__file__).resolve().parents[1]
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-
 import httpx
 
 from evals import metrics as M
@@ -63,7 +59,9 @@ def _ask(
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--base-url", default="http://127.0.0.1:8000", help="API origin without trailing slash")
+    p.add_argument(
+        "--base-url", default="http://127.0.0.1:8000", help="API origin without trailing slash"
+    )
     p.add_argument("--email", default="", help="User email (required unless --dry-run)")
     p.add_argument("--password", default="", help="User password (required unless --dry-run)")
     p.add_argument("--eval-set", type=Path, default=DEFAULT_EVAL, help="Path to eval JSON")
@@ -91,7 +89,9 @@ def main() -> None:
             did = c.get("document_id")
             did_str = str(did) if did else None
             question = str(c["question"])
-            out = _ask(client, base, token, workspace_id=wid, document_id=did_str, question=question)
+            out = _ask(
+                client, base, token, workspace_id=wid, document_id=did_str, question=question
+            )
             msg = out.get("message", {})
             cites = out.get("citations") or []
             dbg = out.get("debug") or {}
@@ -123,7 +123,8 @@ def main() -> None:
     agg = {
         "cases": len(summary),
         "mean_keyword_overlap": sum(s["keyword_overlap"] for s in summary) / max(len(summary), 1),
-        "mean_groundedness_proxy": sum(s["groundedness_proxy"] for s in summary) / max(len(summary), 1),
+        "mean_groundedness_proxy": sum(s["groundedness_proxy"] for s in summary)
+        / max(len(summary), 1),
     }
     recalls = [s["recall_at_k"] for s in summary if s["recall_at_k"] is not None]
     if recalls:

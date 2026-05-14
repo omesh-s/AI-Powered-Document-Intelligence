@@ -23,7 +23,9 @@ def validate_settings_at_startup(settings: Settings | None = None) -> None:
                 "(remove default placeholders; use e.g. openssl rand -hex 32)."
             )
         if s.embedding_provider == "openai" and not (s.openai_api_key or "").strip():
-            raise RuntimeError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai in production.")
+            raise RuntimeError(
+                "OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai in production."
+            )
         if s.llm_provider == "openai" and not (s.openai_api_key or "").strip():
             raise RuntimeError("OPENAI_API_KEY is required when LLM_PROVIDER=openai in production.")
         if not s.cors_origin_list():

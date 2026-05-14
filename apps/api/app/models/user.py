@@ -37,7 +37,7 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    workspace_memberships: Mapped[list["WorkspaceMember"]] = relationship(
+    workspace_memberships: Mapped[list[WorkspaceMember]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )

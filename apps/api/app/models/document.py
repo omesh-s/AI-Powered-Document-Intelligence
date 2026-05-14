@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -27,6 +27,11 @@ from app.models.enums import (
     PageExtractionMethod,
     StructuredBlockType,
 )
+
+if TYPE_CHECKING:
+    from app.models.ingestion import IngestionJob
+    from app.models.query import Citation
+    from app.models.workspace import Workspace
 
 EMBEDDING_DIMENSION = 1536
 
@@ -67,17 +72,17 @@ class Document(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    workspace: Mapped["Workspace"] = relationship(back_populates="documents")
+    workspace: Mapped[Workspace] = relationship(back_populates="documents")
     versions: Mapped[list[DocumentVersion]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
         foreign_keys="DocumentVersion.document_id",
     )
-    latest_version: Mapped["DocumentVersion | None"] = relationship(
+    latest_version: Mapped[DocumentVersion | None] = relationship(
         foreign_keys=[latest_version_id],
         post_update=True,
     )
-    ingestion_jobs: Mapped[list["IngestionJob"]] = relationship(back_populates="document")
+    ingestion_jobs: Mapped[list[IngestionJob]] = relationship(back_populates="document")
 
 
 class DocumentVersion(Base):
@@ -113,8 +118,8 @@ class DocumentVersion(Base):
         back_populates="document_version",
         cascade="all, delete-orphan",
     )
-    ingestion_jobs: Mapped[list["IngestionJob"]] = relationship(back_populates="document_version")
-    citations: Mapped[list["Citation"]] = relationship(back_populates="document_version")
+    ingestion_jobs: Mapped[list[IngestionJob]] = relationship(back_populates="document_version")
+    citations: Mapped[list[Citation]] = relationship(back_populates="document_version")
 
 
 class Page(Base):
@@ -202,4 +207,4 @@ class Chunk(Base):
 
     document_version: Mapped[DocumentVersion] = relationship(back_populates="chunks")
     page: Mapped[Page | None] = relationship(back_populates="chunks")
-    citations: Mapped[list["Citation"]] = relationship(back_populates="chunk")
+    citations: Mapped[list[Citation]] = relationship(back_populates="chunk")

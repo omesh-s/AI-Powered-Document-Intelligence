@@ -90,7 +90,9 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
 
     def allowed_upload_mime_set(self) -> set[str]:
-        return {m.strip().lower() for m in self.allowed_upload_content_types.split(",") if m.strip()}
+        return {
+            m.strip().lower() for m in self.allowed_upload_content_types.split(",") if m.strip()
+        }
 
 
 @lru_cache

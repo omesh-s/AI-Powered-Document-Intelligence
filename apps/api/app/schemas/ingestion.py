@@ -50,4 +50,3 @@ class IngestionReprocessResponse(BaseModel):
     job: IngestionJobSummary
     document: DocumentIngestionSummary | None = None
     request_id: str = Field(..., description="X-Request-ID from the API request")
-

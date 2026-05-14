@@ -39,6 +39,7 @@ async def ready(request: Request, response: Response) -> ReadinessResponse:
 
     async def check_db() -> bool:
         try:
+
             async def _ping() -> bool:
                 async with engine.connect() as conn:
                     await conn.execute(text("SELECT 1"))

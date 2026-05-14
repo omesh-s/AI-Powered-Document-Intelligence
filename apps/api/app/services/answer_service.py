@@ -6,12 +6,12 @@ from typing import Literal
 from app.services.llm_providers import LLMProvider, get_llm_provider
 from app.services.retrieval_service import RetrievalHit
 
-
 GROUNDED_SYSTEM = """You are a careful assistant for contract and document review.
 Rules:
 - Answer ONLY using the evidence blocks labeled [CHUNK_...] below. Do not invent facts.
 - If the evidence is insufficient, say so plainly and do not guess.
-- If evidence conflicts, mention the disagreement briefly and avoid picking a single claim without support.
+- If evidence conflicts, mention the disagreement briefly and avoid picking a single claim \
+without support.
 - Keep answers concise and professional."""
 
 
@@ -27,7 +27,11 @@ def _format_context_blocks(hits: list[RetrievalHit]) -> str:
     parts: list[str] = []
     for h in hits:
         doc = h.chunk.document_version.document
-        page = h.chunk.page.page_number if h.chunk.page else (h.chunk.metadata_json or {}).get("page_number", "?")
+        page = (
+            h.chunk.page.page_number
+            if h.chunk.page
+            else (h.chunk.metadata_json or {}).get("page_number", "?")
+        )
         parts.append(
             f"[CHUNK_{h.chunk.id} | document={doc.filename} | page={page} | score={h.score:.4f}]\n"
             f"{h.chunk.text.strip()}"

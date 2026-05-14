@@ -94,15 +94,19 @@ async def login_user(session: AsyncSession, *, email: str, password: str) -> Aut
 async def refresh_session(session: AsyncSession, *, refresh_token: str) -> AuthResponse:
     try:
         payload = decode_refresh_token(refresh_token)
-    except ValueError:
-        raise AppError("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401)
+    except ValueError as exc:
+        raise AppError(
+            "INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401
+        ) from exc
     sub = payload.get("sub")
     if not sub:
         raise AppError("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401)
     try:
         user_id = UUID(sub)
     except ValueError as exc:
-        raise AppError("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401) from exc
+        raise AppError(
+            "INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401
+        ) from exc
     user = await session.get(User, user_id)
     if user is None or not user.is_active:
         raise AppError("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", status_code=401)
@@ -117,15 +121,19 @@ async def get_user_by_id(session: AsyncSession, user_id: UUID) -> User | None:
 async def authenticate_access_token(session: AsyncSession, token: str) -> User:
     try:
         payload = decode_access_token(token)
-    except ValueError:
-        raise AppError("INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401)
+    except ValueError as exc:
+        raise AppError(
+            "INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401
+        ) from exc
     sub = payload.get("sub")
     if not sub:
         raise AppError("INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401)
     try:
         user_id = UUID(sub)
     except ValueError as exc:
-        raise AppError("INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401) from exc
+        raise AppError(
+            "INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401
+        ) from exc
     user = await session.get(User, user_id)
     if user is None:
         raise AppError("INVALID_ACCESS_TOKEN", "Invalid or expired access token", status_code=401)

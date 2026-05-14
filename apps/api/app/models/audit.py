@@ -39,4 +39,4 @@ class AuditLog(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    workspace: Mapped["Workspace | None"] = relationship(back_populates="audit_logs")
+    workspace: Mapped[Workspace | None] = relationship(back_populates="audit_logs")

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -22,7 +21,6 @@ from app.models.enums import (
     StructuredBlockType,
 )
 from app.models.ingestion import IngestionJob
-from app.models.workspace import WorkspaceMember
 from app.schemas.ingestion import DocumentIngestionSummary, IngestionJobSummary
 from app.services import audit_service
 from app.services.embedding_service import embed_and_store_chunks
@@ -283,7 +281,9 @@ async def process_ingestion_job(
             bucket = settings.s3_bucket_documents
             blob = await storage_client.get_object_bytes(bucket=bucket, key=version.storage_key)
             if not isinstance(blob, (bytes, bytearray)):
-                raise AppError("STORAGE_READ_FAILED", "Failed to read object bytes", status_code=500)
+                raise AppError(
+                    "STORAGE_READ_FAILED", "Failed to read object bytes", status_code=500
+                )
 
             extracted_pages: list[ExtractedPage] = []
             ocr_pages = 0
@@ -306,8 +306,7 @@ async def process_ingestion_job(
                     ocr_confidence = None
 
                 blocks: list[ExtractedBlock] = []
-                order = 0
-                for para in [p.strip() for p in raw.split("\n\n") if p.strip()]:
+                for order, para in enumerate(p.strip() for p in raw.split("\n\n") if p.strip()):
                     blocks.append(
                         ExtractedBlock(
                             block_type=StructuredBlockType.PARAGRAPH,
@@ -315,7 +314,6 @@ async def process_ingestion_job(
                             order_index=order,
                         )
                     )
-                    order += 1
 
                 if not blocks:
                     blocks = [
@@ -338,9 +336,9 @@ async def process_ingestion_job(
                 )
 
             elif file_format == "docx":
-                import docx as docx_lib
-
                 from io import BytesIO
+
+                import docx as docx_lib
 
                 docx_file = docx_lib.Document(BytesIO(blob))
                 raw_paras: list[tuple[str, str | None]] = []
@@ -369,8 +367,7 @@ async def process_ingestion_job(
                     ocr_confidence = None
 
                 blocks = []
-                order = 0
-                for text, style_name in raw_paras:
+                for order, (text, style_name) in enumerate(raw_paras):
                     style_name = style_name or ""
                     if style_name.lower().startswith("heading"):
                         bt = StructuredBlockType.HEADING
@@ -384,7 +381,6 @@ async def process_ingestion_job(
                             content_json={"style": style_name} if style_name else {},
                         )
                     )
-                    order += 1
 
                 if not blocks:
                     blocks = [
@@ -431,8 +427,8 @@ async def process_ingestion_job(
 
                     # Minimal structure: split by blank lines into paragraphs.
                     blocks: list[ExtractedBlock] = []
-                    order = 0
-                    for para in [p.strip() for p in raw_text.split("\n\n") if p.strip()]:
+                    paras = (p.strip() for p in raw_text.split("\n\n") if p.strip())
+                    for order, para in enumerate(paras):
                         blocks.append(
                             ExtractedBlock(
                                 block_type=StructuredBlockType.PARAGRAPH,
@@ -440,7 +436,6 @@ async def process_ingestion_job(
                                 order_index=order,
                             )
                         )
-                        order += 1
 
                     if not blocks:
                         blocks = [
@@ -462,7 +457,9 @@ async def process_ingestion_job(
                         )
                     )
             else:
-                raise AppError("UNSUPPORTED_MEDIA_TYPE", "Unsupported ingestion format", status_code=415)
+                raise AppError(
+                    "UNSUPPORTED_MEDIA_TYPE", "Unsupported ingestion format", status_code=415
+                )
 
             # Persist pages + structured blocks.
             page_rows: dict[int, Page] = {}
@@ -517,8 +514,11 @@ async def process_ingestion_job(
             overlap_chars = getattr(settings, "chunk_overlap_chars", 200)
 
             # Load pages+blocks for this version in order.
-            pages = (await session.execute(select(Page).where(Page.document_version_id == version.id))).scalars().all()
-            pages_by_number = {p.page_number: p for p in pages}
+            pages = (
+                (await session.execute(select(Page).where(Page.document_version_id == version.id)))
+                .scalars()
+                .all()
+            )
             # We chunk per page to keep page_id on chunks.
 
             # Ensure we stream blocks in reading order (order_index).
@@ -526,13 +526,17 @@ async def process_ingestion_job(
             chunk_index = 0
 
             all_blocks = (
-                await session.execute(
-                    select(StructuredBlock)
-                    .join(Page, Page.id == StructuredBlock.page_id)
-                    .where(Page.document_version_id == version.id)
-                    .order_by(StructuredBlock.page_id, StructuredBlock.order_index)
+                (
+                    await session.execute(
+                        select(StructuredBlock)
+                        .join(Page, Page.id == StructuredBlock.page_id)
+                        .where(Page.document_version_id == version.id)
+                        .order_by(StructuredBlock.page_id, StructuredBlock.order_index)
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             blocks_by_page: dict[UUID, list[StructuredBlock]] = {}
             for b in all_blocks:
@@ -613,8 +617,14 @@ async def process_ingestion_job(
             job.progress = 0.95
 
             chunks = (
-                await session.execute(select(Chunk).where(Chunk.document_version_id == version.id))
-            ).scalars().all()
+                (
+                    await session.execute(
+                        select(Chunk).where(Chunk.document_version_id == version.id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
             await embed_and_store_chunks(session, list(chunks))
 
             logger.info(

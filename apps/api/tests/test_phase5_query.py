@@ -12,14 +12,12 @@ from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.models.query import Citation
 from app.services import ingestion_service
-
 from tests.conftest import FAKE_OBJECT_BYTES, FAKE_OBJECT_RAISE_ON, auth_headers
 from tests.test_phase4_ingestion import (
     FakeObjectStorage,
     _create_document_via_upload_url,
     _create_workspace,
     _register,
-    process_job_sync,
 )
 
 
@@ -112,7 +110,9 @@ def test_list_sessions_forbidden_non_member(client: TestClient, unique_email: st
     assert r.json()["error"]["code"] == "WORKSPACE_ACCESS_DENIED"
 
 
-def test_insufficient_evidence_high_threshold(client: TestClient, unique_email: str, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_insufficient_evidence_high_threshold(
+    client: TestClient, unique_email: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("QUERY_ANSWERABILITY_THRESHOLD", "2.0")
     get_settings.cache_clear()
     try:
@@ -196,7 +196,9 @@ def test_citations_persisted_linked_to_assistant(client: TestClient, unique_emai
         async with AsyncSessionLocal() as session:
             from sqlalchemy import func
 
-            stmt = select(func.count()).select_from(Citation).where(Citation.query_message_id == mid)
+            stmt = (
+                select(func.count()).select_from(Citation).where(Citation.query_message_id == mid)
+            )
             return int((await session.execute(stmt)).scalar_one())
 
     cnt = asyncio.run(_count())
@@ -208,7 +210,7 @@ def test_session_list_scoped_to_user_and_filters(client: TestClient, unique_emai
     ws = _create_workspace(client, token, "LstWS")
     ws_id = UUID(ws["id"])
     d1 = _ingest_txt(client, token, ws_id, _para("D1", 40))
-    d2 = _ingest_txt(client, token, ws_id, _para("D2", 40))
+    _ingest_txt(client, token, ws_id, _para("D2", 40))
     client.post(
         "/api/query/ask",
         headers=auth_headers(token),
@@ -288,7 +290,9 @@ def test_retrieval_filter_by_document_id(client: TestClient, unique_email: str) 
         assert c["document_id"] == str(doc_a_id)
 
 
-def test_vector_retrieval_prefers_matching_chunk_text(client: TestClient, unique_email: str) -> None:
+def test_vector_retrieval_prefers_matching_chunk_text(
+    client: TestClient, unique_email: str
+) -> None:
     token = _register(client, f"vec_{unique_email}")
     ws = _create_workspace(client, token, "VecWS")
     ws_id = UUID(ws["id"])

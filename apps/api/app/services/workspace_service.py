@@ -50,7 +50,9 @@ async def create_workspace(session: AsyncSession, *, owner: User, name: str) -> 
     return ws
 
 
-async def list_workspaces_for_user(session: AsyncSession, user_id: UUID) -> list[tuple[Workspace, WorkspaceRole]]:
+async def list_workspaces_for_user(
+    session: AsyncSession, user_id: UUID
+) -> list[tuple[Workspace, WorkspaceRole]]:
     stmt = (
         select(Workspace, WorkspaceMember.role)
         .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)

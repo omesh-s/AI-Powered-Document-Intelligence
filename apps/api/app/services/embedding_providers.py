@@ -113,4 +113,6 @@ def get_embedding_provider() -> EmbeddingProvider:
             model=settings.openai_embedding_model,
             dimension=settings.embedding_dimension,
         )
-    return FakeEmbeddingProvider(dimension=settings.embedding_dimension, model_name="fake-embedding-v1")
+    return FakeEmbeddingProvider(
+        dimension=settings.embedding_dimension, model_name="fake-embedding-v1"
+    )

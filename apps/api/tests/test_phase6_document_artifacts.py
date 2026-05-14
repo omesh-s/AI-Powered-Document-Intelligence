@@ -8,7 +8,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import auth_headers
-from tests.test_phase4_ingestion import _create_document_via_upload_url, _create_workspace, _register, process_job_sync
+from tests.test_phase4_ingestion import (
+    _create_document_via_upload_url,
+    _create_workspace,
+    _register,
+    process_job_sync,
+)
 
 
 @pytest.fixture
@@ -47,7 +52,9 @@ def test_list_pages_and_chunks(client: TestClient, indexed_document: dict[str, U
     assert chunks[0]["chunk_index"] == 0
 
 
-def test_list_documents_status_filter(client: TestClient, indexed_document: dict[str, UUID]) -> None:
+def test_list_documents_status_filter(
+    client: TestClient, indexed_document: dict[str, UUID]
+) -> None:
     token = indexed_document["token"]
     wid = indexed_document["workspace_id"]
     r = client.get(

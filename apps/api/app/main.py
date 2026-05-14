@@ -3,20 +3,20 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.router import api_router
 from app.api.routes import health as health_routes
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorBody, ErrorResponse
-from app.core.startup_validation import validate_settings_at_startup
 from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import limiter
+from app.core.startup_validation import validate_settings_at_startup
 
 configure_logging()
 logger = get_logger(__name__)

@@ -49,8 +49,8 @@ class IngestionJob(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    document: Mapped["Document"] = relationship(
+    document: Mapped[Document] = relationship(
         back_populates="ingestion_jobs",
         foreign_keys=[document_id],
     )
-    document_version: Mapped["DocumentVersion"] = relationship(back_populates="ingestion_jobs")
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="ingestion_jobs")

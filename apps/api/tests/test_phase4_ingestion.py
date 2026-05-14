@@ -13,9 +13,7 @@ from app.api.routes import health as health_mod
 from app.core.database import AsyncSessionLocal
 from app.core.storage import ObjectStorageClient, PresignedUpload
 from app.models.document import Chunk, Page, StructuredBlock
-from app.models.enums import IngestionJobStatus
 from app.services import ingestion_service
-
 from tests.conftest import FAKE_OBJECT_BYTES, FAKE_OBJECT_RAISE_ON, auth_headers
 
 
@@ -240,18 +238,33 @@ def test_txt_ingestion_success_and_chunk_metadata(
 
     async def _verify() -> None:
         async with AsyncSessionLocal() as session:
-            pages_count = (await session.execute(
-                select(func.count()).select_from(Page).where(Page.document_version_id == version_id)
-            )).scalar_one()
+            pages_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Page)
+                    .where(Page.document_version_id == version_id)
+                )
+            ).scalar_one()
 
             chunks = (
-                await session.execute(
-                    select(Chunk).where(Chunk.document_version_id == version_id).order_by(Chunk.chunk_index)
+                (
+                    await session.execute(
+                        select(Chunk)
+                        .where(Chunk.document_version_id == version_id)
+                        .order_by(Chunk.chunk_index)
+                    )
                 )
-            ).scalars().all()
-            blocks_count = (await session.execute(
-                select(func.count()).select_from(StructuredBlock).join(Page, Page.id == StructuredBlock.page_id).where(Page.document_version_id == version_id)
-            )).scalar_one()
+                .scalars()
+                .all()
+            )
+            blocks_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(StructuredBlock)
+                    .join(Page, Page.id == StructuredBlock.page_id)
+                    .where(Page.document_version_id == version_id)
+                )
+            ).scalar_one()
 
             assert pages_count == 1
             assert blocks_count >= 1
@@ -289,10 +302,17 @@ def test_txt_ocr_fallback_called_for_empty_text(
         async with AsyncSessionLocal() as session:
             version_id = UUID(doc_body["latest_version_id"])
             chunk = (
-                await session.execute(
-                    select(Chunk).where(Chunk.document_version_id == version_id).order_by(Chunk.chunk_index).limit(1)
+                (
+                    await session.execute(
+                        select(Chunk)
+                        .where(Chunk.document_version_id == version_id)
+                        .order_by(Chunk.chunk_index)
+                        .limit(1)
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             assert chunk is not None
             assert "OCR_FALLBACK_TEXT" in (chunk.text or "")
 
@@ -332,9 +352,17 @@ def test_docx_parser_ingestion_success(
     async def _verify() -> None:
         async with AsyncSessionLocal() as session:
             version_id = UUID(doc_body["latest_version_id"])
-            chunks = (await session.execute(
-                select(Chunk).where(Chunk.document_version_id == version_id).order_by(Chunk.chunk_index)
-            )).scalars().all()
+            chunks = (
+                (
+                    await session.execute(
+                        select(Chunk)
+                        .where(Chunk.document_version_id == version_id)
+                        .order_by(Chunk.chunk_index)
+                    )
+                )
+                .scalars()
+                .all()
+            )
             assert len(chunks) >= 1
             meta = chunks[0].metadata_json
             assert meta["section_heading"] == "My Heading"
@@ -376,12 +404,22 @@ def test_pdf_native_ingestion_success(
 
     async def _verify() -> None:
         async with AsyncSessionLocal() as session:
-            pages_count = (await session.execute(
-                select(func.count()).select_from(Page).where(Page.document_version_id == version_id)
-            )).scalar_one()
-            chunks = (await session.execute(
-                select(Chunk).where(Chunk.document_version_id == version_id)
-            )).scalars().all()
+            pages_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Page)
+                    .where(Page.document_version_id == version_id)
+                )
+            ).scalar_one()
+            chunks = (
+                (
+                    await session.execute(
+                        select(Chunk).where(Chunk.document_version_id == version_id)
+                    )
+                )
+                .scalars()
+                .all()
+            )
             assert pages_count == 1
             assert len(chunks) >= 1
 
@@ -436,12 +474,20 @@ def test_reprocess_creates_new_job_and_resets_artifacts(
 
     async def _counts() -> tuple[int, int]:
         async with AsyncSessionLocal() as session:
-            pages_count = (await session.execute(
-                select(func.count()).select_from(Page).where(Page.document_version_id == version_id)
-            )).scalar_one()
-            chunks_count = (await session.execute(
-                select(func.count()).select_from(Chunk).where(Chunk.document_version_id == version_id)
-            )).scalar_one()
+            pages_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Page)
+                    .where(Page.document_version_id == version_id)
+                )
+            ).scalar_one()
+            chunks_count = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(Chunk)
+                    .where(Chunk.document_version_id == version_id)
+                )
+            ).scalar_one()
             return int(pages_count), int(chunks_count)
 
     before_pages, before_chunks = asyncio.run(_counts())
@@ -540,4 +586,3 @@ def test_ready_redis_down(monkeypatch: pytest.MonkeyPatch) -> None:
         body = resp.json()
         assert body["status"] == "not_ready"
         assert body["checks"]["redis"] is False
-
